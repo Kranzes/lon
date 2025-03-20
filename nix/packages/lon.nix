@@ -27,9 +27,6 @@ rustPlatform.buildRustPackage {
 
   nativeBuildInputs = [ makeBinaryWrapper ];
 
-  # Only the unit test suite is designed to run in the sandbox.
-  cargoTestFlags = "--bins";
-
   postInstall = ''
     wrapProgram $out/bin/lon --prefix PATH : ${
       lib.makeBinPath [

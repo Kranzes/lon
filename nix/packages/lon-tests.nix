@@ -15,17 +15,19 @@ lon.overrideAttrs (
     postBuild = ''
       (
       set -x
-      ${rust.envVars.setEnv} cargo test --test '*' --no-run "''${flagsArray[@]}"
+      ${rust.envVars.setEnv} cargo test --test '*' --no-run "''${flagsArray[@]}" -- --ignored
       )
     '';
 
-    postInstall = ''
-      find /build/source/target/${stdenv.targetPlatform.rust.rustcTarget}/release/deps/ \
-        -name "integration-*" \
-        -type f \
-        -executable \
-        -execdir install -D {} $out/bin/lon-tests \;
-    '';
+    postInstall =
+      previousAttrs.postInstall
+      + ''
+        find /build/source/target/${stdenv.targetPlatform.rust.rustcTarget}/release/deps/ \
+          -name "integration-*" \
+          -type f \
+          -executable \
+          -execdir install -D {} $out/bin/lon-tests \;
+      '';
 
     doCheck = false;
 

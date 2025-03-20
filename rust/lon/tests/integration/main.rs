@@ -3,6 +3,7 @@ use std::{path::Path, process::Output};
 use anyhow::{Result, bail};
 use assert_cmd::Command;
 
+mod ignored;
 mod init;
 mod remove;
 
