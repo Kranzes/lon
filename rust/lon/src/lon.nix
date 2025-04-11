@@ -23,12 +23,23 @@ let
   fetchSource =
     args@{ fetchType, ... }:
     if fetchType == "git" then
-      builtins.fetchGit {
-        url = args.url;
-        ref = args.branch;
-        rev = args.revision;
-        narHash = args.hash;
-      }
+      builtins.fetchGit (
+        {
+          url = args.url;
+          ref = args.branch;
+          rev = args.revision;
+          narHash = args.hash;
+        }
+        // (
+          if args ? lastModified then
+            {
+              inherit (args) lastModified;
+              shallow = true;
+            }
+          else
+            { }
+        )
+      )
     else if fetchType == "tarball" then
       builtins.fetchTarball {
         url = args.url;
