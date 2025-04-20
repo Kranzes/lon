@@ -28,6 +28,8 @@ pub enum FetchType {
 #[serde(rename_all = "camelCase")]
 pub struct GitSource {
     pub fetch_type: FetchType,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub frozen: bool,
 
     pub branch: String,
     pub revision: String,
@@ -42,6 +44,8 @@ pub struct GitSource {
 #[serde(rename_all = "camelCase")]
 pub struct GitHubSource {
     pub fetch_type: FetchType,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub frozen: bool,
 
     pub owner: String,
     pub repo: String,
