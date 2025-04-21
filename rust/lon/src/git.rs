@@ -1,6 +1,11 @@
-use std::{fmt, path::Path, process::Command};
+use std::{
+    fmt,
+    path::Path,
+    process::{Command, Output},
+};
 
 use anyhow::{bail, Context, Result};
+use tempfile::TempDir;
 
 /// A git revision (aka commit).
 #[derive(PartialEq, Clone)]
@@ -90,6 +95,86 @@ fn ls_remote(args: &[&str]) -> Result<Vec<RemoteInfo>> {
             })
         })
         .collect::<Result<Vec<RemoteInfo>>>()
+}
+
+/// Obtain the lastModified information
+pub fn get_last_modified(url: &str, rev: &str) -> Result<u64> {
+    let tmp_dir = TempDir::new()?;
+    let mut output: Output;
+
+    // Init a new git directory
+    output = Command::new("git")
+        .arg("--git-dir")
+        .arg(tmp_dir.path())
+        .arg("init")
+        .output()
+        .context("Failed to execute git init. Most likely it's not on PATH")?;
+
+    if !output.status.success() {
+        bail!(
+            "Failed to initialize a fresh git repository\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+    }
+
+    // Add the repository as a remote
+    output = Command::new("git")
+        .arg("--git-dir")
+        .arg(tmp_dir.path())
+        .args(["remote", "add", "origin", url])
+        .output()
+        .context("Failed to execute git remote add.")?;
+
+    if !output.status.success() {
+        bail!(
+            "Failed to add the remote {}\n{}",
+            url,
+            String::from_utf8_lossy(&output.stderr)
+        )
+    }
+
+    // Fetch the locked revision
+    output = Command::new("git")
+        .arg("--git-dir")
+        .arg(tmp_dir.path())
+        .args([
+            "fetch",
+            "--depth=1",
+            "--no-show-forced-updates",
+            "origin",
+            rev,
+        ])
+        .output()
+        .context("Failed to execute git fetch.")?;
+
+    if !output.status.success() {
+        bail!(
+            "Failed to fetch the revision {}\n{}",
+            rev,
+            String::from_utf8_lossy(&output.stderr)
+        )
+    }
+
+    // Get the lastModified value
+    output = Command::new("git")
+        .arg("--git-dir")
+        .arg(tmp_dir.path())
+        .args(["log", "-1", "--format=%ct", "--no-show-signature", rev])
+        .output()
+        .context("Failed to execute git log.")?;
+
+    if !output.status.success() {
+        bail!(
+            "Failed to log the revision {}\n{}",
+            rev,
+            String::from_utf8_lossy(&output.stderr)
+        )
+    }
+
+    String::from_utf8_lossy(&output.stdout)
+        .trim_end()
+        .parse::<u64>()
+        .context("Failed to parse last modified timestamp.")
 }
 
 pub fn add(directory: impl AsRef<Path>, args: &[&Path]) -> Result<()> {

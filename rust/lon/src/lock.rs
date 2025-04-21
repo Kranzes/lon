@@ -79,6 +79,15 @@ mod tests {
                     "revision": "f5a3a7dff44d131807fc1a89fbd8576cd870334a",
                     "url": "git@github.com:nix-community/lanzaboote.git",
                     "hash": "sha256-e/fSi0WER06N8WCvpht62fkGtWfe5ckDxr6zNYkwkFw=",
+                    "lastModified": 1722329086
+                },
+                "lanzaboote-2": {
+                    "type": "Git",
+                    "fetchType": "git",
+                    "branch": "master",
+                    "revision": "f5a3a7dff44d131807fc1a89fbd8576cd870334a",
+                    "url": "git@github.com:nix-community/lanzaboote.git",
+                    "hash": "sha256-e/fSi0WER06N8WCvpht62fkGtWfe5ckDxr6zNYkwkFw="
                 },
             }
         });

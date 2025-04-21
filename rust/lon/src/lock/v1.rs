@@ -33,6 +33,8 @@ pub struct GitSource {
     pub revision: String,
     pub url: String,
     pub hash: SriHash,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_modified: Option<u64>,
     /// Whether to fetch submodules
     #[serde(default)]
     pub submodules: bool,

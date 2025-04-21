@@ -106,6 +106,7 @@ pub struct GitSource {
     branch: String,
     revision: Revision,
     hash: SriHash,
+    last_modified: Option<u64>,
 
     /// Whether to fetch submodules
     submodules: bool,
@@ -127,11 +128,15 @@ impl GitSource {
         let hash = Self::compute_hash(url, rev, submodules)?;
         log::info!("Locked hash: {hash}");
 
+        let last_modified = git::get_last_modified(url, rev)?;
+        log::info!("Locked lastModified: {last_modified}");
+
         Ok(Self {
             url: url.into(),
             branch: branch.into(),
             revision: Revision::new(rev),
             hash,
+            last_modified: Some(last_modified),
             submodules,
         })
     }
@@ -159,6 +164,13 @@ impl GitSource {
         log::info!("Updated hash: {} → {}", self.hash, new_hash);
         self.revision = revision.clone();
         self.hash = new_hash;
+        let last_modified = git::get_last_modified(self.url.as_str(), revision.as_str())?;
+        if let Some(value) = self.last_modified {
+            log::info!("Updated lastModified: {} → {}", value, last_modified);
+        } else {
+            log::info!("Added lastModified: {}", last_modified);
+        }
+        self.last_modified = Some(last_modified);
         Ok(())
     }
 
@@ -336,6 +348,7 @@ impl From<lock::v1::GitSource> for GitSource {
             revision: Revision::new(&value.revision),
             url: value.url,
             hash: value.hash,
+            last_modified: value.last_modified,
             submodules: value.submodules,
         }
     }
@@ -382,6 +395,7 @@ impl From<GitSource> for lock::v1::GitSource {
             revision: value.revision.to_string(),
             url: value.url,
             hash: value.hash,
+            last_modified: value.last_modified,
             submodules: value.submodules,
         }
     }
