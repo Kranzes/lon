@@ -20,6 +20,7 @@ use crate::{
 const DEFAULT_LOG_LEVEL: usize = 2;
 
 #[derive(Parser)]
+#[command(version)]
 pub struct Cli {
     /// Silence all output
     #[arg(short, long)]
