@@ -50,12 +50,13 @@ enum Commands {
     ///
     /// When you only change the branch, the newest revision from that branch is locked.
     ///
-    /// When you change the revision,  the source is locked to this revision.
+    /// When you change the revision, the source is locked to this revision.
     Modify(ModifyArgs),
     /// Remove an existing source
     Remove(SourceArgs),
     /// Freeze an existing source
     Freeze(SourceArgs),
+    /// Unfreeze an existing source
     Unfreeze(SourceArgs),
 }
 

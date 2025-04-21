@@ -5,34 +5,40 @@ Lock & update Nix dependencies.
 ## Features
 
 - Only uses SRI hashes
-- Supports fixed outputs of `fetchgit` by using an SRI hash
+- Supports fixed outputs of `builtins.fetchGit` by using an SRI hash and thus
+  enables caching for these sources in the Nix Store.
 - Allows overriding dependencies via an environment variable for local
   development
 - Leverages modern Nix features (concretely this means Nix >= 2.4 is required)
 
 ## Installation
 
-Hopefully, Lon will soon be available in Nixpkgs.
+The easiest way to use Lon is directly from Nixpkgs. It is currently available
+in the `nixos-unstable` branch and will be included in NixOS releases starting
+from 25.05.
 
-For now, the easiest way to run Lon is:
+You can also invoke it via `nix run github:nikstur/lon`.
 
 ```console
-$ nix run github:nikstur/lon
+$ lon
 Usage: lon [OPTIONS] <COMMAND>
 
 Commands:
-  init    Initialize lon.{nix,lock}
-  add     Add a new source
-  update  Update an existing source to the newest revision
-  modify  Modify an existing source
-  remove  Remove an existing source
-  help    Print this message or the help of the given subcommand(s)
+  init      Initialize lon.{nix,lock}
+  add       Add a new source
+  update    Update an existing source to the newest revision
+  modify    Modify an existing source
+  remove    Remove an existing source
+  freeze    Freeze an existing source
+  unfreeze  Unfreeze an existing source
+  help      Print this message or the help of the given subcommand(s)
 
 Options:
   -q, --quiet                  Silence all output
   -v, --verbose...             Verbose mode (-v, -vv, etc.)
   -d, --directory <DIRECTORY>  The directory containing lon.{nix,lock}
   -h, --help                   Print help
+  -V, --version                Print version
 ```
 
 ## Usage
@@ -61,6 +67,7 @@ $ lon add git lix https://git.lix.systems/lix-project/lix.git main
 Adding lix...
 Locked revision: a510d1748416ff29b1ed3cab92ac0ad943b6e590
 Locked hash: sha256-IjSu5PnS+LFqHfJgueDXrqSBd9/j9GxAbrFK8F1/Z5Y=
+Locked lastModified: 1724864109
 ```
 
 Git sources also support fetching submodules. Enable it by supplying
@@ -99,8 +106,8 @@ give your sources names that only contain alphanumeric names.
 - Support only few repository hosters: Lon does not aim to support all possible
   repository hosters. It will focus on the most important ones and will as much
   as possible rely on generic protocols (e.g. Git) to find and lock updates.
-  GitHub is already an exception to this rule, but because of its ubiquitiy and
-  importance, unavoidable.
+  GitHub is already an exception to this rule, but because of its ubiquity and
+  importance, it is unavoidable.
 - No tracking besides Git branches. You can still lock e.g. a specific
   revision, but you will have to update it manually.
 
