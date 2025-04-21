@@ -53,7 +53,10 @@ enum Commands {
     /// When you change the revision,  the source is locked to this revision.
     Modify(ModifyArgs),
     /// Remove an existing source
-    Remove(RemoveArgs),
+    Remove(SourceArgs),
+    /// Freeze an existing source
+    Freeze(SourceArgs),
+    Unfreeze(SourceArgs),
 }
 
 #[derive(Subcommand)]
@@ -84,6 +87,9 @@ struct AddGitArgs {
     /// Fetch submodules
     #[arg(long)]
     submodules: bool,
+    /// Freeze the source
+    #[arg(long, default_value_t = false)]
+    frozen: bool,
 }
 
 #[derive(Args)]
@@ -100,6 +106,9 @@ struct AddGitHubArgs {
     /// Revision to lock
     #[arg(short, long)]
     revision: Option<String>,
+    /// Freeze the source
+    #[arg(long, default_value_t = false)]
+    frozen: bool,
 }
 
 #[derive(Args)]
@@ -126,7 +135,7 @@ struct ModifyArgs {
 }
 
 #[derive(Args)]
-struct RemoveArgs {
+struct SourceArgs {
     /// Name of the source
     name: String,
 }
@@ -173,6 +182,8 @@ impl Commands {
             Self::Update(args) => update(directory, &args),
             Self::Modify(args) => modify(directory, &args),
             Self::Remove(args) => remove(directory, &args),
+            Self::Freeze(args) => freeze(directory, &args),
+            Self::Unfreeze(args) => unfreeze(directory, &args),
         }
     }
 }
@@ -209,6 +220,7 @@ fn add_git(directory: impl AsRef<Path>, args: &AddGitArgs) -> Result<()> {
         &args.branch,
         args.revision.as_ref(),
         args.submodules,
+        args.frozen,
     )?;
 
     sources.add(&args.name, Source::Git(source));
@@ -233,7 +245,13 @@ fn add_github(directory: impl AsRef<Path>, args: &AddGitHubArgs) -> Result<()> {
 
     log::info!("Adding {name}...");
 
-    let source = GitHubSource::new(owner, repo, &args.branch, args.revision.as_ref())?;
+    let source = GitHubSource::new(
+        owner,
+        repo,
+        &args.branch,
+        args.revision.as_ref(),
+        args.frozen,
+    )?;
 
     sources.add(&name, Source::GitHub(source));
 
@@ -321,7 +339,7 @@ fn modify(directory: impl AsRef<Path>, args: &ModifyArgs) -> Result<()> {
     Ok(())
 }
 
-fn remove(directory: impl AsRef<Path>, args: &RemoveArgs) -> Result<()> {
+fn remove(directory: impl AsRef<Path>, args: &SourceArgs) -> Result<()> {
     let mut sources = Sources::read(&directory)?;
 
     if !sources.contains(&args.name) {
@@ -331,6 +349,40 @@ fn remove(directory: impl AsRef<Path>, args: &RemoveArgs) -> Result<()> {
     log::info!("Removing {}...", args.name);
 
     sources.remove(&args.name);
+
+    sources.write(&directory)?;
+    LonNix::update(&directory)?;
+
+    Ok(())
+}
+
+fn freeze(directory: impl AsRef<Path>, args: &SourceArgs) -> Result<()> {
+    let mut sources = Sources::read(&directory)?;
+
+    let Some(source) = sources.get_mut(&args.name) else {
+        bail!("Source {} doesn't exist", args.name)
+    };
+
+    log::info!("Freezing {}...", args.name);
+
+    source.freeze();
+
+    sources.write(&directory)?;
+    LonNix::update(&directory)?;
+
+    Ok(())
+}
+
+fn unfreeze(directory: impl AsRef<Path>, args: &SourceArgs) -> Result<()> {
+    let mut sources = Sources::read(&directory)?;
+
+    let Some(source) = sources.get_mut(&args.name) else {
+        bail!("Source {} doesn't exist", args.name)
+    };
+
+    log::info!("Unfreezing {}...", args.name);
+
+    source.unfreeze();
 
     sources.write(&directory)?;
     LonNix::update(&directory)?;

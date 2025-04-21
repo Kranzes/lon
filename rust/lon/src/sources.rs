@@ -99,6 +99,20 @@ impl Source {
             Self::GitHub(s) => s.modify(branch, revision),
         }
     }
+
+    pub fn freeze(&mut self) {
+        match self {
+            Self::Git(s) => s.frozen = true,
+            Self::GitHub(s) => s.frozen = true,
+        }
+    }
+
+    pub fn unfreeze(&mut self) {
+        match self {
+            Self::Git(s) => s.frozen = false,
+            Self::GitHub(s) => s.frozen = false,
+        }
+    }
 }
 
 pub struct GitSource {
@@ -110,6 +124,8 @@ pub struct GitSource {
 
     /// Whether to fetch submodules
     submodules: bool,
+
+    frozen: bool,
 }
 
 impl GitSource {
@@ -118,6 +134,7 @@ impl GitSource {
         branch: &str,
         revision: Option<&String>,
         submodules: bool,
+        frozen: bool,
     ) -> Result<Self> {
         let rev = match revision {
             Some(rev) => rev,
@@ -138,11 +155,17 @@ impl GitSource {
             hash,
             last_modified: Some(last_modified),
             submodules,
+            frozen,
         })
     }
 
     /// Update the source by finding the newest commit.
     fn update(&mut self) -> Result<Option<UpdateSummary>> {
+        if self.frozen {
+            log::info!("Source is frozen");
+            return Ok(None);
+        }
+
         let newest_revision = git::find_newest_revision(&self.url, &self.branch)?;
 
         let current_revision = self.revision.clone();
@@ -212,10 +235,18 @@ pub struct GitHubSource {
     revision: Revision,
     url: String,
     hash: SriHash,
+
+    frozen: bool,
 }
 
 impl GitHubSource {
-    pub fn new(owner: &str, repo: &str, branch: &str, revision: Option<&String>) -> Result<Self> {
+    pub fn new(
+        owner: &str,
+        repo: &str,
+        branch: &str,
+        revision: Option<&String>,
+        frozen: bool,
+    ) -> Result<Self> {
         let rev = match revision {
             Some(rev) => rev,
             None => &git::find_newest_revision(&Self::git_url(owner, repo), branch)?.to_string(),
@@ -234,11 +265,17 @@ impl GitHubSource {
             branch: branch.into(),
             revision: Revision::new(rev),
             hash,
+            frozen,
         })
     }
 
     /// Update the source by finding the newest commit.
     fn update(&mut self) -> Result<Option<UpdateSummary>> {
+        if self.frozen {
+            log::info!("Source is frozen");
+            return Ok(None);
+        }
+
         let newest_revision =
             git::find_newest_revision(&Self::git_url(&self.owner, &self.repo), &self.branch)?;
 
@@ -350,6 +387,7 @@ impl From<lock::v1::GitSource> for GitSource {
             hash: value.hash,
             last_modified: value.last_modified,
             submodules: value.submodules,
+            frozen: value.frozen,
         }
     }
 }
@@ -363,6 +401,7 @@ impl From<lock::v1::GitHubSource> for GitHubSource {
             revision: Revision::new(&value.revision),
             url: value.url,
             hash: value.hash,
+            frozen: value.frozen,
         }
     }
 }
@@ -397,6 +436,7 @@ impl From<GitSource> for lock::v1::GitSource {
             hash: value.hash,
             last_modified: value.last_modified,
             submodules: value.submodules,
+            frozen: value.frozen,
         }
     }
 }
@@ -411,6 +451,7 @@ impl From<GitHubSource> for lock::v1::GitHubSource {
             revision: value.revision.to_string(),
             url: value.url,
             hash: value.hash,
+            frozen: value.frozen,
         }
     }
 }
