@@ -154,7 +154,10 @@ impl Cli {
 
         let directory = match cli.directory {
             Some(directory) => directory,
-            None => std::env::current_dir().unwrap_or_default(),
+            None => match std::env::var("LON_DIRECTORY") {
+                Ok(dir) => PathBuf::from(dir),
+                Err(_) => std::env::current_dir().unwrap_or_default(),
+            },
         };
 
         match cli.commands.call(directory) {
