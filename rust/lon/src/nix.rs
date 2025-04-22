@@ -1,6 +1,6 @@
 use std::{fmt, process::Command};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
 /// A SRI hash.

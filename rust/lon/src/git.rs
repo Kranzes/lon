@@ -4,7 +4,7 @@ use std::{
     process::{Command, Output},
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use tempfile::TempDir;
 
 /// A git revision (aka commit).
