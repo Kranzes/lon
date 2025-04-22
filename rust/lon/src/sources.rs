@@ -173,7 +173,7 @@ impl GitSource {
         if current_revision == newest_revision {
             log::info!("Already up to date");
             return Ok(None);
-        };
+        }
         log::info!("Updated revision: {current_revision} → {newest_revision}");
         self.lock(&newest_revision)?;
         Ok(Some(UpdateSummary::new(current_revision, newest_revision)))
@@ -189,9 +189,9 @@ impl GitSource {
         self.hash = new_hash;
         let last_modified = git::get_last_modified(self.url.as_str(), revision.as_str())?;
         if let Some(value) = self.last_modified {
-            log::info!("Updated lastModified: {} → {}", value, last_modified);
+            log::info!("Updated lastModified: {value} → {last_modified}");
         } else {
-            log::info!("Added lastModified: {}", last_modified);
+            log::info!("Added lastModified: {last_modified}");
         }
         self.last_modified = Some(last_modified);
         Ok(())
@@ -207,7 +207,7 @@ impl GitSource {
                 self.branch = branch.into();
                 if revision.is_none() {
                     self.update()?;
-                };
+                }
             }
         }
         if let Some(revision) = revision {
@@ -284,7 +284,7 @@ impl GitHubSource {
         if current_revision == newest_revision {
             log::info!("Already up to date");
             return Ok(None);
-        };
+        }
 
         log::info!("Updated revision: {current_revision} → {newest_revision}");
         self.lock(&newest_revision)?;
@@ -314,7 +314,7 @@ impl GitHubSource {
                 self.branch = branch.into();
                 if revision.is_none() {
                     self.update()?;
-                };
+                }
             }
         }
         if let Some(revision) = revision {

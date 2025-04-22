@@ -1,4 +1,5 @@
 {
+  stdenv,
   rust,
   jq,
   lon,
@@ -14,18 +15,13 @@ lon.overrideAttrs (
     postBuild = ''
       (
       set -x
-      ${rust.envVars.setEnv} cargo test --test '*' --no-run -j $NIX_BUILD_CORES \
-          --target ${rust.envVars.rustHostPlatformSpec} \
-          --offline \
-          $cargoBuildProfileFlag \
-          $cargoBuildNoDefaultFeaturesFlag \
-          $cargoBuildFeaturesFlag \
-          $cargoBuildFlags
+      ${rust.envVars.setEnv} cargo test --test '*' --no-run "''${flagsArray[@]}"
       )
     '';
 
     postInstall = ''
-      find /build/source/target/${rust.envVars.rustHostPlatformSpec}/release/deps/integration-* \
+      find /build/source/target/${stdenv.targetPlatform.rust.rustcTarget}/release/deps/ \
+        -name "integration-*" \
         -type f \
         -executable \
         -execdir install -D {} $out/bin/lon-tests \;

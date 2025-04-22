@@ -1,6 +1,6 @@
 use std::{path::Path, process::Output};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use assert_cmd::Command;
 
 mod init;

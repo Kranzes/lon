@@ -4,7 +4,7 @@ use std::{
     process::ExitCode,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
 
 use crate::{
@@ -278,7 +278,7 @@ fn update(directory: impl AsRef<Path>, args: &UpdateArgs) -> Result<()> {
 
     if names.is_empty() {
         bail!("Lock file doesn't contain any sources")
-    };
+    }
 
     let mut summaries = Vec::new();
 
@@ -295,12 +295,12 @@ fn update(directory: impl AsRef<Path>, args: &UpdateArgs) -> Result<()> {
 
         if let Some(summary) = summary {
             summaries.push((name, summary));
-        };
+        }
     }
 
     if summaries.is_empty() {
         bail!("No updates available")
-    };
+    }
 
     let mut commit_message = String::new();
     writeln!(&mut commit_message, "lon: update")?;
