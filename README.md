@@ -115,3 +115,25 @@ give your sources names that only contain alphanumeric names.
 
 Lon is heavily inspired by [niv](https://github.com/nmattia/niv) and
 [npins](https://github.com/andir/npins) and builds on their success.
+
+## Contributing
+
+Contributions are welcome!
+
+### Tests
+
+Lon has a growing test suite that consists of two parts:
+
+- normal Rust unit/integration tests
+- VM tests
+
+The VM tests are also written in Rust but are ignored when you call `cargo
+test`. They are designed to only run inside a VM because they access resources
+mocked by another VM. You can call these VM tests via `nix build
+.#checks.x86_64-linux.lon`.
+
+You can add another VM test by creating one in inside the `ignored` module of
+the Rust integration tests.
+
+All the tests are included in the flake checks. You can run all of them via
+`nix flake check`.
