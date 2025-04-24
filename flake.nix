@@ -65,20 +65,7 @@
 
             checks =
               {
-                clippy = config.packages.default.overrideAttrs (
-                  _: previousAttrs: {
-                    pname = previousAttrs.pname + "-clippy";
-                    nativeCheckInputs = (previousAttrs.nativeCheckInputs or [ ]) ++ [ pkgs.clippy ];
-                    checkPhase = "cargo clippy";
-                  }
-                );
-                rustfmt = config.packages.default.overrideAttrs (
-                  _: previousAttrs: {
-                    pname = previousAttrs.pname + "-rustfmt";
-                    nativeCheckInputs = (previousAttrs.nativeCheckInputs or [ ]) ++ [ pkgs.rustfmt ];
-                    checkPhase = "cargo fmt --check";
-                  }
-                );
+                inherit (config.packages.default.tests) clippy fmt;
               }
               // (import ./nix/tests {
                 inherit pkgs;
