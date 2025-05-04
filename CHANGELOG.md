@@ -5,6 +5,9 @@
 - Fixed fetching submodules.
 - Added the ability to read the directory in which to look for Lon's files from
   the environment variable `LON_DIRECTORY`.
+- Added the subcommand `bot` to create a PR for each source that can be
+  updated. This is meant to run inside CI on a schedule. Currently, only GitLab
+  is supported.
 
 ## 0.3.0
 

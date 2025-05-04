@@ -31,6 +31,7 @@ Commands:
   remove    Remove an existing source
   freeze    Freeze an existing source
   unfreeze  Unfreeze an existing source
+  bot       Bot that opens PRs for updates
   help      Print this message or the help of the given subcommand(s)
 
 Options:
@@ -101,20 +102,83 @@ points to instead of the fetching the locked source from `lon.lock`.
 Note that no sanitizing of names is performed by Lon. That's why you should
 give your sources names that only contain alphanumeric names.
 
-## Invariants
+## Bot
 
-- Support only few repository hosters: Lon does not aim to support all possible
-  repository hosters. It will focus on the most important ones and will as much
-  as possible rely on generic protocols (e.g. Git) to find and lock updates.
-  GitHub is already an exception to this rule, but because of its ubiquity and
-  importance, it is unavoidable.
-- No tracking besides Git branches. You can still lock e.g. a specific
-  revision, but you will have to update it manually.
+With the subcommand `bot <forge>`, you can automatically update your sources. Lon
+iterates over each source and if an update is available, performs it and opens
+a PR.
 
-## On the Shoulders of Giants
+Currently, GitLab (subcommand `gitlab`) is the only supported forge.
 
-Lon is heavily inspired by [niv](https://github.com/nmattia/niv) and
-[npins](https://github.com/andir/npins) and builds on their success.
+```console
+Bot that opens PRs for updates
+
+Usage: lon bot <COMMAND>
+
+Commands:
+  gitlab  Run the bot for GitLab
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+```
+
+### GitLab Usage
+
+1. Create a [Project Access Token] with the role `Developer`, and the `api` and
+   `write_repository` scope. You can also create a [Group Access Token] so that
+   the entire group can use the bot.
+2. Store the token in a CI/CD variable called `PROJECT_ACCESS_TOKEN`.
+3. Configure a [Scheduled Pipeline].
+4. Extend your `.gitlab-ci.yml` with the following snippet. Make sure to set
+   `LON_PUSH_URL` including the token stored in `PROJECT_ACCESS_TOKEN`.
+
+```yml
+stages:
+  - update
+
+lon:
+  stage: update
+  rules:
+    # Only run on a schedule and only on the main branch.
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+  variables:
+    LON_TOKEN: "$PROJECT_ACCESS_TOKEN"
+    LON_PUSH_URL: "https://token:${LON_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+    LON_LABELS: "bot,lon"
+  script:
+    - lon bot gitlab
+```
+
+[Project Access Token]: https://docs.gitlab.com/user/project/settings/project_access_tokens/
+[Group Access Token]: https://docs.gitlab.com/user/group/settings/group_access_tokens/
+[Scheduled Pipeline]: https://docs.gitlab.com/ci/pipelines/schedules/
+
+### Config
+
+The bot is configured exclusively via environment variables.
+
+#### Required
+
+- `LON_TOKEN`: The token to access the forge API and push to the repository.
+
+#### Optional
+
+- `LON_USER_NAME`: The Git user name under which the changes are made.
+- `LON_USER_EMAIL`: The Git user email under which the changes are made.
+- `LON_LABELS`: The labels to set on the Pull Request as a comma separated
+  string (e.g. `"lon,bot"`).
+- `LON_PUSH_URL`: The URL to use to push to the repository. This can be used to
+  set a token in the URL. For GitLab, this is required.
+
+#### GitLab Specific (Required)
+
+These are [predefined in GitLab
+CI/CD](https://docs.gitlab.com/ci/variables/predefined_variables/#predefined-variables).
+
+- `CI_API_V4_URL`
+- `CI_PROJECT_ID`
+- `CI_DEFAULT_BRANCH`
 
 ## Contributing
 
@@ -137,3 +201,18 @@ the Rust integration tests.
 
 All the tests are included in the flake checks. You can run all of them via
 `nix flake check`.
+
+### Invariants
+
+- Support only few repository hosters: Lon does not aim to support all possible
+  repository hosters. It will focus on the most important ones and will as much
+  as possible rely on generic protocols (e.g. Git) to find and lock updates.
+  GitHub is already an exception to this rule, but because of its ubiquity and
+  importance, it is unavoidable.
+- No tracking besides Git branches. You can still lock e.g. a specific
+  revision, but you will have to update it manually.
+
+## On the Shoulders of Giants
+
+Lon is heavily inspired by [niv](https://github.com/nmattia/niv) and
+[npins](https://github.com/andir/npins) and builds on their success.

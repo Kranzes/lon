@@ -34,6 +34,20 @@ struct RemoteInfo {
     pub reference: String,
 }
 
+pub struct User {
+    name: String,
+    email: String,
+}
+
+impl User {
+    pub fn new(name: &str, email: &str) -> Self {
+        Self {
+            name: name.into(),
+            email: email.into(),
+        }
+    }
+}
+
 /// Find the newest revision for a branch of a git repository.
 pub fn find_newest_revision(url: &str, branch: &str) -> Result<Revision> {
     find_newest_revision_for_ref(url, &format!("refs/heads/{branch}")).with_context(|| {
@@ -195,10 +209,19 @@ pub fn add(directory: impl AsRef<Path>, args: &[&Path]) -> Result<()> {
     Ok(())
 }
 
-pub fn commit(directory: impl AsRef<Path>, message: &str) -> Result<()> {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(directory.as_ref())
+pub fn commit(directory: impl AsRef<Path>, message: &str, user: Option<User>) -> Result<()> {
+    let mut command = Command::new("git");
+    command.arg("-C").arg(directory.as_ref());
+
+    if let Some(user) = user {
+        command
+            .arg("-c")
+            .arg(format!("user.name={}", user.name))
+            .arg("-c")
+            .arg(format!("user.email={}", user.email));
+    }
+
+    let output = command
         .arg("commit")
         .arg("--message")
         .arg(message)
@@ -208,6 +231,97 @@ pub fn commit(directory: impl AsRef<Path>, message: &str) -> Result<()> {
     if !output.status.success() {
         bail!(
             "Failed to commit files\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    Ok(())
+}
+
+/// Retrieve the current ref.
+///
+/// This is either a branch or a commit (if you're on a detached HEAD).
+pub fn current_rev(directory: impl AsRef<Path>) -> Result<String> {
+    let symbolic_ref_output = Command::new("git")
+        .arg("-C")
+        .arg(directory.as_ref())
+        .arg("symbolic-ref")
+        .arg("--short")
+        .arg("HEAD")
+        .output()
+        .context("Failed to execute git symbolic-ref. Most likely it's not on PATH")?;
+
+    if symbolic_ref_output.status.success() {
+        return Ok(String::from_utf8_lossy(&symbolic_ref_output.stdout)
+            .trim_end()
+            .into());
+    }
+
+    // If we're not on a branch, we retrieve the commit hash of the presumably detached HEAD.
+    let rev_parse_output = Command::new("git")
+        .arg("-C")
+        .arg(directory.as_ref())
+        .arg("rev-parse")
+        .arg("HEAD")
+        .output()
+        .context("Failed to execute git rev-parse. Most likely it's not on PATH")?;
+
+    if !rev_parse_output.status.success() {
+        bail!(
+            "Failed to find current commit \n{}",
+            String::from_utf8_lossy(&rev_parse_output.stderr)
+        );
+    }
+
+    Ok(String::from_utf8_lossy(&rev_parse_output.stdout)
+        .trim_end()
+        .into())
+}
+
+/// Checkout a reference.
+pub fn checkout(directory: impl AsRef<Path>, reference: &str, create_or_reset: bool) -> Result<()> {
+    let mut command = Command::new("git");
+
+    command.arg("-C").arg(directory.as_ref()).arg("checkout");
+
+    if create_or_reset {
+        command.arg("-B");
+    }
+
+    command.arg(reference);
+
+    let output = command
+        .output()
+        .context("Failed to execute git checkout. Most likely it's not on PATH")?;
+    if !output.status.success() {
+        bail!(
+            "Failed to checkout ref {reference} \n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    Ok(())
+}
+
+/// Force push the current branch to the default remote.
+pub fn force_push(directory: impl AsRef<Path>, url: Option<&str>) -> Result<()> {
+    let mut command = Command::new("git");
+
+    command
+        .arg("-C")
+        .arg(directory.as_ref())
+        .arg("push")
+        .arg("--force");
+
+    if let Some(url) = url {
+        command.arg(url);
+    }
+
+    let output = command
+        .output()
+        .context("Failed to execute git push. Most likely it's not on PATH")?;
+
+    if !output.status.success() {
+        bail!(
+            "Failed to force push current branch \n{}",
             String::from_utf8_lossy(&output.stderr)
         );
     }

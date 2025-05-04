@@ -30,7 +30,7 @@ impl UpdateSummary {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Sources {
     map: BTreeMap<String, Source>,
 }
@@ -43,8 +43,8 @@ impl Sources {
     }
 
     /// Convert to Lock and write to file inside the specified directory.
-    pub fn write(self, directory: impl AsRef<Path>) -> Result<()> {
-        let lock = self.into_latest_lock();
+    pub fn write(&self, directory: impl AsRef<Path>) -> Result<()> {
+        let lock = self.clone().into_latest_lock();
         lock.write(directory)?;
         Ok(())
     }
@@ -80,6 +80,7 @@ impl Sources {
     }
 }
 
+#[derive(Clone)]
 pub enum Source {
     Git(GitSource),
     GitHub(GitHubSource),
@@ -113,8 +114,17 @@ impl Source {
             Self::GitHub(s) => s.frozen = false,
         }
     }
+
+    // Return whether source is frozen.
+    pub fn frozen(&self) -> bool {
+        match self {
+            Self::Git(s) => s.frozen,
+            Self::GitHub(s) => s.frozen,
+        }
+    }
 }
 
+#[derive(Clone)]
 pub struct GitSource {
     url: String,
     branch: String,
@@ -228,6 +238,7 @@ impl GitSource {
     }
 }
 
+#[derive(Clone)]
 pub struct GitHubSource {
     owner: String,
     repo: String,
