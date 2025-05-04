@@ -1,4 +1,6 @@
+mod bot;
 mod cli;
+mod config;
 mod git;
 mod lock;
 mod lon_nix;

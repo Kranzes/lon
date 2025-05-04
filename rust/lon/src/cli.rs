@@ -1,5 +1,6 @@
 use std::{
-    fmt::Write,
+    env,
+    fmt::{self, Write},
     path::{Path, PathBuf},
     process::ExitCode,
 };
@@ -8,10 +9,11 @@ use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
 
 use crate::{
+    bot::{Forge, GitLab},
     git,
     lock::Lock,
     lon_nix::LonNix,
-    sources::{GitHubSource, GitSource, Source, Sources},
+    sources::{GitHubSource, GitSource, Source, Sources, UpdateSummary},
 };
 
 /// The default log level.
@@ -58,6 +60,12 @@ enum Commands {
     Freeze(SourceArgs),
     /// Unfreeze an existing source
     Unfreeze(SourceArgs),
+
+    /// Bot that opens PRs for updates
+    Bot {
+        #[clap(subcommand)]
+        commands: BotCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -141,6 +149,13 @@ struct SourceArgs {
     name: String,
 }
 
+#[derive(Subcommand)]
+#[clap(rename_all = "lower")]
+enum BotCommands {
+    /// Run the bot for GitLab
+    GitLab,
+}
+
 impl Cli {
     pub fn init(module: &str) -> ExitCode {
         let cli = Self::parse();
@@ -188,6 +203,10 @@ impl Commands {
             Self::Remove(args) => remove(directory, &args),
             Self::Freeze(args) => freeze(directory, &args),
             Self::Unfreeze(args) => unfreeze(directory, &args),
+
+            Self::Bot { commands } => match commands {
+                BotCommands::GitLab => bot(directory, &GitLab::from_env()?),
+            },
         }
     }
 }
@@ -280,7 +299,7 @@ fn update(directory: impl AsRef<Path>, args: &UpdateArgs) -> Result<()> {
         bail!("Lock file doesn't contain any sources")
     }
 
-    let mut summaries = Vec::new();
+    let mut commit_message = CommitMessage::new();
 
     for name in &names {
         let Some(source) = sources.get_mut(name) else {
@@ -294,33 +313,19 @@ fn update(directory: impl AsRef<Path>, args: &UpdateArgs) -> Result<()> {
             .with_context(|| format!("Failed to update {name}"))?;
 
         if let Some(summary) = summary {
-            summaries.push((name, summary));
+            commit_message.add_summary(name, summary);
         }
     }
 
-    if summaries.is_empty() {
+    if commit_message.is_empty() {
         bail!("No updates available")
-    }
-
-    let mut commit_message = String::new();
-    writeln!(&mut commit_message, "lon: update")?;
-    writeln!(&mut commit_message)?;
-    writeln!(&mut commit_message, "Updated sources:")?;
-    writeln!(&mut commit_message)?;
-
-    for (name, summary) in summaries {
-        writeln!(&mut commit_message, "• {name}:")?;
-        writeln!(&mut commit_message, "    {}", summary.old_revision)?;
-        writeln!(&mut commit_message, "  → {}", summary.new_revision)?;
     }
 
     sources.write(&directory)?;
     LonNix::update(&directory)?;
 
     if args.commit {
-        git::add(&directory, &[&Lock::path(&directory)])?;
-        git::add(&directory, &[&LonNix::path(&directory)])?;
-        git::commit(&directory, &commit_message)?;
+        commit(&directory, &commit_message.to_string(), None)?;
     }
 
     Ok(())
@@ -391,5 +396,127 @@ fn unfreeze(directory: impl AsRef<Path>, args: &SourceArgs) -> Result<()> {
     sources.write(&directory)?;
     LonNix::update(&directory)?;
 
+    Ok(())
+}
+
+fn bot(directory: impl AsRef<Path>, forge: &impl Forge) -> Result<()> {
+    let base_ref = git::current_rev(&directory)?;
+
+    let result = bot_fallible(&directory, forge, &base_ref);
+
+    // Always return to the base commit.
+    git::checkout(&directory, &base_ref, false)?;
+
+    result
+}
+
+fn bot_fallible(directory: impl AsRef<Path>, forge: &impl Forge, base_ref: &str) -> Result<()> {
+    let mut sources = Sources::read(&directory)?;
+
+    let names = sources
+        .names()
+        .into_iter()
+        .cloned()
+        .collect::<Vec<String>>();
+
+    let mut commit_message = CommitMessage::new();
+
+    for name in &names {
+        let Some(source) = sources.get_mut(name) else {
+            log::warn!("Source {name} doesn't exist");
+            continue;
+        };
+
+        if source.frozen() {
+            log::info!("Source {name} is frozen. Skipping...");
+            continue;
+        }
+
+        log::debug!("Checking out base ref {base_ref}...");
+        git::checkout(&directory, base_ref, false)?;
+
+        let branch = format!("lon/{name}");
+        log::debug!("Checking out new branch {branch}...");
+        git::checkout(&directory, &branch, true)?;
+
+        log::info!("Updating {name}...");
+
+        let summary = source
+            .update()
+            .with_context(|| format!("Failed to update {name}"))?;
+
+        let Some(summary) = summary else {
+            log::info!("No updates available");
+            continue;
+        };
+        commit_message.add_summary(name, summary);
+
+        sources.write(&directory)?;
+        LonNix::update(&directory)?;
+
+        let user_name = env::var("LON_USER_NAME").unwrap_or("LonBot".into());
+        let user_email = env::var("LON_USER_EMAIL").unwrap_or("lonbot@lonbot".into());
+
+        log::debug!("Committing changes...");
+        commit(
+            &directory,
+            &commit_message.to_string(),
+            Some(git::User::new(&user_name, &user_email)),
+        )?;
+
+        let push_url = env::var("LON_PUSH_URL").ok();
+
+        // Never log the URL as it might contain a secret token.
+        log::debug!("Force pushing repository...");
+        git::force_push(&directory, push_url.as_deref())?;
+
+        let pull_request_url = forge.open_pull_request(&branch, name)?;
+        log::info!("Opened Pull Request: {pull_request_url}");
+    }
+
+    Ok(())
+}
+
+struct CommitMessage(Vec<(String, UpdateSummary)>);
+
+impl CommitMessage {
+    fn new() -> Self {
+        Self(vec![])
+    }
+
+    fn add_summary(&mut self, name: &str, summary: UpdateSummary) {
+        self.0.push((name.into(), summary));
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl fmt::Display for CommitMessage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut commit_message = String::new();
+        writeln!(&mut commit_message, "lon: update")?;
+        writeln!(&mut commit_message)?;
+        writeln!(&mut commit_message, "Updated sources:")?;
+        writeln!(&mut commit_message)?;
+
+        for (name, summary) in &self.0 {
+            writeln!(&mut commit_message, "• {name}:")?;
+            writeln!(&mut commit_message, "    {}", summary.old_revision)?;
+            writeln!(&mut commit_message, "  → {}", summary.new_revision)?;
+        }
+        write!(f, "{commit_message}")
+    }
+}
+
+fn commit(
+    directory: impl AsRef<Path>,
+    commit_message: &str,
+    user: Option<git::User>,
+) -> Result<()> {
+    git::add(&directory, &[&Lock::path(&directory)])?;
+    git::add(&directory, &[&LonNix::path(&directory)])?;
+    git::commit(&directory, commit_message, user)?;
     Ok(())
 }
