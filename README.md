@@ -180,21 +180,6 @@ CI/CD](https://docs.gitlab.com/ci/variables/predefined_variables/#predefined-var
 - `CI_PROJECT_ID`
 - `CI_DEFAULT_BRANCH`
 
-## Invariants
-
-- Support only few repository hosters: Lon does not aim to support all possible
-  repository hosters. It will focus on the most important ones and will as much
-  as possible rely on generic protocols (e.g. Git) to find and lock updates.
-  GitHub is already an exception to this rule, but because of its ubiquity and
-  importance, it is unavoidable.
-- No tracking besides Git branches. You can still lock e.g. a specific
-  revision, but you will have to update it manually.
-
-## On the Shoulders of Giants
-
-Lon is heavily inspired by [niv](https://github.com/nmattia/niv) and
-[npins](https://github.com/andir/npins) and builds on their success.
-
 ## Contributing
 
 Contributions are welcome!
@@ -216,3 +201,18 @@ the Rust integration tests.
 
 All the tests are included in the flake checks. You can run all of them via
 `nix flake check`.
+
+### Invariants
+
+- Support only few repository hosters: Lon does not aim to support all possible
+  repository hosters. It will focus on the most important ones and will as much
+  as possible rely on generic protocols (e.g. Git) to find and lock updates.
+  GitHub is already an exception to this rule, but because of its ubiquity and
+  importance, it is unavoidable.
+- No tracking besides Git branches. You can still lock e.g. a specific
+  revision, but you will have to update it manually.
+
+## On the Shoulders of Giants
+
+Lon is heavily inspired by [niv](https://github.com/nmattia/niv) and
+[npins](https://github.com/andir/npins) and builds on their success.
