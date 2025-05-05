@@ -302,20 +302,16 @@ pub fn checkout(directory: impl AsRef<Path>, reference: &str, create_or_reset: b
 }
 
 /// Force push the current branch to the default remote.
-pub fn force_push(directory: impl AsRef<Path>, url: Option<&str>) -> Result<()> {
-    let mut command = Command::new("git");
+pub fn force_push(directory: impl AsRef<Path>, url: Option<&str>, branch: &str) -> Result<()> {
+    let repository = url.unwrap_or("origin");
 
-    command
+    let output = Command::new("git")
         .arg("-C")
         .arg(directory.as_ref())
         .arg("push")
-        .arg("--force");
-
-    if let Some(url) = url {
-        command.arg(url);
-    }
-
-    let output = command
+        .arg("--force")
+        .arg(repository)
+        .arg(branch)
         .output()
         .context("Failed to execute git push. Most likely it's not on PATH")?;
 

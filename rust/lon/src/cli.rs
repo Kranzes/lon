@@ -9,7 +9,7 @@ use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
 
 use crate::{
-    bot::{Forge, GitLab},
+    bot::{Forge, GitHub, GitLab},
     git,
     lock::Lock,
     lon_nix::LonNix,
@@ -154,6 +154,8 @@ struct SourceArgs {
 enum BotCommands {
     /// Run the bot for GitLab
     GitLab,
+    /// Run the bot for GitHub
+    GitHub,
 }
 
 impl Cli {
@@ -206,6 +208,7 @@ impl Commands {
 
             Self::Bot { commands } => match commands {
                 BotCommands::GitLab => bot(directory, &GitLab::from_env()?),
+                BotCommands::GitHub => bot(directory, &GitHub::from_env()?),
             },
         }
     }
@@ -468,7 +471,7 @@ fn bot_fallible(directory: impl AsRef<Path>, forge: &impl Forge, base_ref: &str)
 
         // Never log the URL as it might contain a secret token.
         log::debug!("Force pushing repository...");
-        git::force_push(&directory, push_url.as_deref())?;
+        git::force_push(&directory, push_url.as_deref(), &branch)?;
 
         let pull_request_url = forge.open_pull_request(&branch, name)?;
         log::info!("Opened Pull Request: {pull_request_url}");

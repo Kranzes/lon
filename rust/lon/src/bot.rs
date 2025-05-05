@@ -1,7 +1,9 @@
 use anyhow::Result;
 
+mod github;
 mod gitlab;
 
+pub use github::GitHub;
 pub use gitlab::GitLab;
 
 pub trait Forge {
