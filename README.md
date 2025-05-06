@@ -6,10 +6,11 @@ Lock & update Nix dependencies.
 
 - Only uses SRI hashes
 - Supports fixed outputs of `builtins.fetchGit` by using an SRI hash and thus
-  enables caching for these sources in the Nix Store.
+  enables caching for these sources in the Nix Store
 - Allows overriding dependencies via an environment variable for local
   development
 - Leverages modern Nix features (concretely this means Nix >= 2.4 is required)
+- Built-in bot to automate dependency updates
 
 ## Installation
 
@@ -108,7 +109,7 @@ With the subcommand `bot <forge>`, you can automatically update your sources. Lo
 iterates over each source and if an update is available, performs it and opens
 a PR.
 
-Currently, GitLab (subcommand `gitlab`) is the only supported forge.
+Currently, GitLab (`gitlab`) and GitHub (`github`) are supported.
 
 ```console
 Bot that opens PRs for updates
@@ -117,6 +118,7 @@ Usage: lon bot <COMMAND>
 
 Commands:
   gitlab  Run the bot for GitLab
+  github  Run the bot for GitHub
   help    Print this message or the help of the given subcommand(s)
 
 Options:
@@ -154,6 +156,30 @@ lon:
 [Group Access Token]: https://docs.gitlab.com/user/group/settings/group_access_tokens/
 [Scheduled Pipeline]: https://docs.gitlab.com/ci/pipelines/schedules/
 
+### GitHub Usage
+
+1. [Allow GitHub Actions to create Pull
+   Requests](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#preventing-github-actions-from-creating-or-approving-pull-requests)
+2. Add a workflow for updates (e.g. `.github/workflows/update.yml`). Use the
+   following snippet to create a functioning workflow. Note specifically the
+   permissions and environment variables.
+
+```yml
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          LON_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LON_LABELS: "lon,bot"
+        run: lon bot github
+```
+
 ### Config
 
 The bot is configured exclusively via environment variables.
@@ -179,6 +205,14 @@ CI/CD](https://docs.gitlab.com/ci/variables/predefined_variables/#predefined-var
 - `CI_API_V4_URL`
 - `CI_PROJECT_ID`
 - `CI_DEFAULT_BRANCH`
+
+#### GitHub Specific (Required)
+
+These are [predefined in GitHub
+Actions](https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/store-information-in-variables#default-environment-variables).
+
+- `GITHUB_API_URL`
+- `GITHUB_REPOSITORY`
 
 ## Contributing
 
