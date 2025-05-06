@@ -65,9 +65,15 @@ pub fn prefetch_git(url: &str, revision: &str, submodules: bool) -> Result<SriHa
     SriHash::from_nix_base_32(&response.sha256)
 }
 
+/// Fetch a tarball and calculate its hash.
+///
+/// Uses the same store path (via `--name source`) as `builtins.fetchTarball` to download the
+/// source only once.
 pub fn prefetch_tarball(url: &str) -> Result<SriHash> {
     let output = Command::new("nix-prefetch-url")
         .arg("--unpack")
+        .arg("--name")
+        .arg("source")
         .arg("--type")
         .arg("sha256")
         .arg(url)
