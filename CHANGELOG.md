@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 (unreleased)
+## 0.4.0
 
 - Fixed fetching submodules.
 - Added the ability to read the directory in which to look for Lon's files from
