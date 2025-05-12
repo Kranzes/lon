@@ -1,8 +1,10 @@
 use anyhow::Result;
 
+mod forgejo;
 mod github;
 mod gitlab;
 
+pub use forgejo::Forgejo;
 pub use github::GitHub;
 pub use gitlab::GitLab;
 
