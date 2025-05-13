@@ -183,11 +183,35 @@ jobs:
 
 ### Forgejo Usage
 
+#### Basic usage
+
+Add a workflow for updates (e.g. `.forgejo/workflows/update.yml`). Use the
+following snippet to create a functioning workflow.
+
+```yml
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          LON_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+          LON_LABELS: "lon,bot"
+        run: lon bot forgejo
+```
+
+Note, however, that the pull requests opened via this actions will not trigger workflows
+due to how the the [automatic token](https://forgejo.org/docs/latest/user/actions/#automatic-token) is designed.
+
+#### With an Access Token
+
+To alleviate the previous problem, it is possible to create a personal access token to
+use instead of the automatic one.
+
 1. Create an [Access Token] with the `write:repository` scope
 2. Add the token to the actions secret variables
-3. Add a workflow for updates (e.g. `.forgejo/workflows/update.yml`). Use the
-   following snippet to create a functioning workflow. Note specifically the
-   permissions and environment variables.
+
+The next snippet creates such a workflow.
 
 ```yml
 jobs:
