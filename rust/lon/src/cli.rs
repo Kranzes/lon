@@ -414,7 +414,7 @@ fn bot(directory: impl AsRef<Path>, forge: &impl Forge) -> Result<()> {
 }
 
 fn bot_fallible(directory: impl AsRef<Path>, forge: &impl Forge, base_ref: &str) -> Result<()> {
-    let mut sources = Sources::read(&directory)?;
+    let sources = Sources::read(&directory)?;
 
     let names = sources
         .names()
@@ -422,10 +422,11 @@ fn bot_fallible(directory: impl AsRef<Path>, forge: &impl Forge, base_ref: &str)
         .cloned()
         .collect::<Vec<String>>();
 
-    let mut commit_message = CommitMessage::new();
-
     for name in &names {
-        let Some(source) = sources.get_mut(name) else {
+        // Clone the original sources to reset the state between updates
+        let mut m_sources = sources.clone();
+
+        let Some(source) = m_sources.get_mut(name) else {
             log::warn!("Source {name} doesn't exist");
             continue;
         };
@@ -452,9 +453,12 @@ fn bot_fallible(directory: impl AsRef<Path>, forge: &impl Forge, base_ref: &str)
             log::info!("No updates available");
             continue;
         };
+
+        let mut commit_message = CommitMessage::new();
+
         commit_message.add_summary(name, summary);
 
-        sources.write(&directory)?;
+        m_sources.write(&directory)?;
         LonNix::update(&directory)?;
 
         let user_name = env::var("LON_USER_NAME").unwrap_or("LonBot".into());
@@ -473,8 +477,10 @@ fn bot_fallible(directory: impl AsRef<Path>, forge: &impl Forge, base_ref: &str)
         log::debug!("Force pushing repository...");
         git::force_push(&directory, push_url.as_deref(), &branch)?;
 
-        let pull_request_url = forge.open_pull_request(&branch, name)?;
-        log::info!("Opened Pull Request: {pull_request_url}");
+        match forge.open_pull_request(&branch, name) {
+            Ok(pull_request_url) => log::info!("Opened Pull Request: {pull_request_url}"),
+            Err(err) => log::warn!("{err}"),
+        }
     }
 
     Ok(())
