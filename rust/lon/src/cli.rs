@@ -425,6 +425,11 @@ fn bot_fallible(directory: impl AsRef<Path>, forge: &impl Forge, base_ref: &str)
         .cloned()
         .collect::<Vec<String>>();
 
+    let list_commits = match env::var("LON_LIST_COMMITS") {
+        Ok(s) => s.parse::<usize>().unwrap_or(50),
+        Err(_) => 0,
+    };
+
     for name in &names {
         // Clone the original sources to reset the state between updates
         let mut m_sources = sources.clone();
@@ -452,14 +457,18 @@ fn bot_fallible(directory: impl AsRef<Path>, forge: &impl Forge, base_ref: &str)
             .update()
             .with_context(|| format!("Failed to update {name}"))?;
 
-        let Some(summary) = summary else {
+        let Some(mut summary) = summary else {
             log::info!("No updates available");
             continue;
         };
 
+        if list_commits > 0 {
+            source.rev_list(&mut summary, list_commits)?;
+        }
+
         let mut commit_message = CommitMessage::new();
 
-        commit_message.add_summary(name, summary);
+        commit_message.add_summary(name, summary.clone());
 
         m_sources.write(&directory)?;
         LonNix::update(&directory)?;
@@ -480,7 +489,9 @@ fn bot_fallible(directory: impl AsRef<Path>, forge: &impl Forge, base_ref: &str)
         log::debug!("Force pushing repository...");
         git::force_push(&directory, push_url.as_deref(), &branch)?;
 
-        match forge.open_pull_request(&branch, name) {
+        let body = summary.message(0).map(|msg| format!("```\n{msg}\n```"));
+
+        match forge.open_pull_request(&branch, name, body) {
             Ok(pull_request_url) => log::info!("Opened Pull Request: {pull_request_url}"),
             Err(err) => log::warn!("{err}"),
         }
@@ -521,6 +532,11 @@ impl fmt::Display for CommitMessage {
                 "{} → {}",
                 summary.old_revision, summary.new_revision
             )?;
+
+            if let Some(msg) = summary.message(0) {
+                writeln!(&mut commit_message)?;
+                writeln!(&mut commit_message, "{msg}")?;
+            }
         } else {
             writeln!(&mut commit_message, "lon: update")?;
             writeln!(&mut commit_message)?;
@@ -529,6 +545,11 @@ impl fmt::Display for CommitMessage {
                 writeln!(&mut commit_message, "• {name}:")?;
                 writeln!(&mut commit_message, "    {}", summary.old_revision)?;
                 writeln!(&mut commit_message, "  → {}", summary.new_revision)?;
+
+                if let Some(msg) = summary.message(2) {
+                    writeln!(&mut commit_message)?;
+                    writeln!(&mut commit_message, "{msg}")?;
+                }
             }
         }
         write!(f, "{commit_message}")
