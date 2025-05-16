@@ -486,34 +486,47 @@ fn bot_fallible(directory: impl AsRef<Path>, forge: &impl Forge, base_ref: &str)
     Ok(())
 }
 
-struct CommitMessage(Vec<(String, UpdateSummary)>);
+struct CommitMessage {
+    updates: Vec<(String, UpdateSummary)>,
+}
 
 impl CommitMessage {
     fn new() -> Self {
-        Self(vec![])
+        Self { updates: vec![] }
     }
 
     fn add_summary(&mut self, name: &str, summary: UpdateSummary) {
-        self.0.push((name.into(), summary));
+        self.updates.push((name.into(), summary));
     }
 
     fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.updates.is_empty()
     }
 }
 
 impl fmt::Display for CommitMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut commit_message = String::new();
-        writeln!(&mut commit_message, "lon: update")?;
-        writeln!(&mut commit_message)?;
-        writeln!(&mut commit_message, "Updated sources:")?;
-        writeln!(&mut commit_message)?;
 
-        for (name, summary) in &self.0 {
-            writeln!(&mut commit_message, "• {name}:")?;
-            writeln!(&mut commit_message, "    {}", summary.old_revision)?;
-            writeln!(&mut commit_message, "  → {}", summary.new_revision)?;
+        if self.updates.len() == 1 {
+            let (name, summary) = &self.updates[0];
+
+            writeln!(&mut commit_message, "lon: update {name}")?;
+            writeln!(&mut commit_message)?;
+            writeln!(
+                &mut commit_message,
+                "{} → {}",
+                summary.old_revision, summary.new_revision
+            )?;
+        } else {
+            writeln!(&mut commit_message, "lon: update")?;
+            writeln!(&mut commit_message)?;
+
+            for (name, summary) in &self.updates {
+                writeln!(&mut commit_message, "• {name}:")?;
+                writeln!(&mut commit_message, "    {}", summary.old_revision)?;
+                writeln!(&mut commit_message, "  → {}", summary.new_revision)?;
+            }
         }
         write!(f, "{commit_message}")
     }
