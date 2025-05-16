@@ -109,7 +109,7 @@ With the subcommand `bot <forge>`, you can automatically update your sources. Lo
 iterates over each source and if an update is available, performs it and opens
 a PR.
 
-Currently, GitLab (`gitlab`) and GitHub (`github`) are supported.
+Currently, GitLab (`gitlab`), GitHub (`github`) and Forgejo (`forgejo`) are supported.
 
 ```console
 Bot that opens PRs for updates
@@ -117,9 +117,10 @@ Bot that opens PRs for updates
 Usage: lon bot <COMMAND>
 
 Commands:
-  gitlab  Run the bot for GitLab
-  github  Run the bot for GitHub
-  help    Print this message or the help of the given subcommand(s)
+  gitlab   Run the bot for GitLab
+  github   Run the bot for GitHub
+  forgejo  Run the bot for Forgejo
+  help     Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help  Print help
@@ -179,6 +180,30 @@ jobs:
           LON_LABELS: "lon,bot"
         run: lon bot github
 ```
+
+### Forgejo Usage
+
+1. Create an [Access Token] with the `write:repository` scope
+2. Add the token to the actions secret variables
+3. Add a workflow for updates (e.g. `.forgejo/workflows/update.yml`). Use the
+   following snippet to create a functioning workflow. Note specifically the
+   permissions and environment variables.
+
+```yml
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.ACCESS_TOKEN }}
+      - env:
+          LON_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          LON_LABELS: "lon,bot"
+        run: lon bot forgejo
+```
+
+[Access Token]: https://docs.codeberg.org/advanced/access-token/
 
 ### Config
 

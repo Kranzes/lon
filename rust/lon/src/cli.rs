@@ -9,7 +9,7 @@ use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
 
 use crate::{
-    bot::{Forge, GitHub, GitLab},
+    bot::{Forge, Forgejo, GitHub, GitLab},
     git,
     lock::Lock,
     lon_nix::LonNix,
@@ -156,6 +156,8 @@ enum BotCommands {
     GitLab,
     /// Run the bot for GitHub
     GitHub,
+    /// Run the bot for Forgejo
+    Forgejo,
 }
 
 impl Cli {
@@ -209,6 +211,7 @@ impl Commands {
             Self::Bot { commands } => match commands {
                 BotCommands::GitLab => bot(directory, &GitLab::from_env()?),
                 BotCommands::GitHub => bot(directory, &GitHub::from_env()?),
+                BotCommands::Forgejo => bot(directory, &Forgejo::from_env()?),
             },
         }
     }
