@@ -4,6 +4,7 @@ mod commit_message;
 mod config;
 mod git;
 mod http;
+mod init;
 mod lock;
 mod lon_nix;
 mod nix;

@@ -21,6 +21,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     ".toml"
     ".lock"
     ".nix"
+    ".json" # Test fixtures
   ];
 
   cargoLock = {
