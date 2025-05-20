@@ -7,7 +7,53 @@ use std::{
 use anyhow::{Context, Result, bail};
 use tempfile::TempDir;
 
-/// A git revision (aka commit).
+#[derive(Clone, Debug)]
+pub struct RevList {
+    revs: Vec<Commit>,
+}
+
+impl RevList {
+    pub fn from_commits(commits: impl IntoIterator<Item = Commit>) -> Self {
+        Self {
+            revs: commits.into_iter().collect(),
+        }
+    }
+
+    pub fn from_git_output(s: &str) -> Self {
+        let revs = s
+            .lines()
+            .filter_map(|s| s.split_once(' ').map(|(r, m)| Commit::from_str(r, m)))
+            .collect();
+
+        Self { revs }
+    }
+
+    pub fn revs(&self) -> &[Commit] {
+        &self.revs
+    }
+}
+
+/// A commit made up of a revision and a message.
+#[derive(Clone, Debug)]
+pub struct Commit {
+    pub revision: Revision,
+    pub message: String,
+}
+
+impl Commit {
+    pub fn from_str(revision: &str, message: &str) -> Self {
+        Self {
+            revision: Revision::new(revision),
+            message: message.into(),
+        }
+    }
+
+    pub fn message_summary(&self) -> &str {
+        self.message.lines().next().unwrap_or_default()
+    }
+}
+
+/// A git revision (just the SHA hash).
 #[derive(PartialEq, Clone)]
 pub struct Revision(String);
 
@@ -19,11 +65,21 @@ impl Revision {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    pub fn short(&self) -> &str {
+        &self.as_str()[..7]
+    }
 }
 
 impl fmt::Display for Revision {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl fmt::Debug for Revision {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{self}")
     }
 }
 
@@ -197,7 +253,7 @@ pub fn rev_list(
     old_revision: &str,
     new_revision: &str,
     num_commits: usize,
-) -> Result<String> {
+) -> Result<RevList> {
     let tmp_dir = TempDir::new()?;
     let mut output: Output;
 
@@ -282,7 +338,10 @@ pub fn rev_list(
     output = Command::new("git")
         .arg("--git-dir")
         .arg(tmp_dir.path())
-        .args(["rev-list", "--oneline"])
+        .arg("rev-list")
+        .arg("--oneline")
+        .arg("--max-count")
+        .arg(num_commits.to_string())
         .arg(format!("{old_revision}..{new_revision}"))
         .output()
         .context("Failed to execute git rev-list.")?;
@@ -296,7 +355,9 @@ pub fn rev_list(
         )
     }
 
-    Ok(String::from_utf8_lossy(&output.stdout).trim_end().into())
+    let s = String::from_utf8_lossy(&output.stdout);
+
+    Ok(RevList::from_git_output(s.trim_end()))
 }
 
 pub fn add(directory: impl AsRef<Path>, args: &[&Path]) -> Result<()> {
@@ -430,4 +491,42 @@ pub fn force_push(directory: impl AsRef<Path>, url: Option<&str>, branch: &str) 
         );
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use expect_test::expect;
+    use indoc::indoc;
+
+    #[test]
+    fn rev_list_from_git_output() {
+        let git_output = indoc! {"
+            8ac85cd treewide: release 0.3.0
+            6f6df87 Cargo.toml: upgrade dependencies
+            c215157 changelog: add a mention for the forgejo bot
+        "};
+
+        let rev_list = RevList::from_git_output(git_output);
+
+        let expected = expect![[r#"
+            RevList {
+                revs: [
+                    Commit {
+                        revision: 8ac85cd,
+                        message: "treewide: release 0.3.0",
+                    },
+                    Commit {
+                        revision: 6f6df87,
+                        message: "Cargo.toml: upgrade dependencies",
+                    },
+                    Commit {
+                        revision: c215157,
+                        message: "changelog: add a mention for the forgejo bot",
+                    },
+                ],
+            }"#]];
+        expected.assert_eq(&format!("{:#?}", &rev_list));
+    }
 }

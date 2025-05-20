@@ -1,7 +1,9 @@
 mod bot;
 mod cli;
+mod commit_message;
 mod config;
 mod git;
+mod http;
 mod lock;
 mod lon_nix;
 mod nix;

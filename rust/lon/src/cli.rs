@@ -1,6 +1,5 @@
 use std::{
     env,
-    fmt::{self, Write},
     path::{Path, PathBuf},
     process::ExitCode,
 };
@@ -10,10 +9,11 @@ use clap::{Args, Parser, Subcommand};
 
 use crate::{
     bot::{Forge, Forgejo, GitHub, GitLab},
+    commit_message::CommitMessage,
     git,
     lock::Lock,
     lon_nix::LonNix,
-    sources::{GitHubSource, GitSource, Source, Sources, UpdateSummary},
+    sources::{GitHubSource, GitSource, Source, Sources},
 };
 
 /// The default log level.
@@ -463,7 +463,8 @@ fn bot_fallible(directory: impl AsRef<Path>, forge: &impl Forge, base_ref: &str)
         };
 
         if list_commits > 0 {
-            source.rev_list(&mut summary, list_commits)?;
+            let rev_list = source.rev_list(&summary, list_commits)?;
+            summary.add_rev_list(rev_list);
         }
 
         let mut commit_message = CommitMessage::new();
@@ -489,71 +490,13 @@ fn bot_fallible(directory: impl AsRef<Path>, forge: &impl Forge, base_ref: &str)
         log::debug!("Force pushing repository...");
         git::force_push(&directory, push_url.as_deref(), &branch)?;
 
-        let body = summary.message(0).map(|msg| format!("```\n{msg}\n```"));
-
-        match forge.open_pull_request(&branch, name, body) {
+        match forge.open_pull_request(&branch, name, Some(commit_message.body()?)) {
             Ok(pull_request_url) => log::info!("Opened Pull Request: {pull_request_url}"),
             Err(err) => log::warn!("{err}"),
         }
     }
 
     Ok(())
-}
-
-struct CommitMessage {
-    updates: Vec<(String, UpdateSummary)>,
-}
-
-impl CommitMessage {
-    fn new() -> Self {
-        Self { updates: vec![] }
-    }
-
-    fn add_summary(&mut self, name: &str, summary: UpdateSummary) {
-        self.updates.push((name.into(), summary));
-    }
-
-    fn is_empty(&self) -> bool {
-        self.updates.is_empty()
-    }
-}
-
-impl fmt::Display for CommitMessage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut commit_message = String::new();
-
-        if self.updates.len() == 1 {
-            let (name, summary) = &self.updates[0];
-
-            writeln!(&mut commit_message, "lon: update {name}")?;
-            writeln!(&mut commit_message)?;
-            writeln!(
-                &mut commit_message,
-                "{} → {}",
-                summary.old_revision, summary.new_revision
-            )?;
-
-            if let Some(msg) = summary.message(0) {
-                writeln!(&mut commit_message)?;
-                writeln!(&mut commit_message, "{msg}")?;
-            }
-        } else {
-            writeln!(&mut commit_message, "lon: update")?;
-            writeln!(&mut commit_message)?;
-
-            for (name, summary) in &self.updates {
-                writeln!(&mut commit_message, "• {name}:")?;
-                writeln!(&mut commit_message, "    {}", summary.old_revision)?;
-                writeln!(&mut commit_message, "  → {}", summary.new_revision)?;
-
-                if let Some(msg) = summary.message(2) {
-                    writeln!(&mut commit_message)?;
-                    writeln!(&mut commit_message, "{msg}")?;
-                }
-            }
-        }
-        write!(f, "{commit_message}")
-    }
 }
 
 fn commit(
