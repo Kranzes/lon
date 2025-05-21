@@ -1,9 +1,13 @@
 # Changelog
 
-## 0.5.0 (unreleased)
+## 0.5.0
 
 - Fixed a redundant download when prefetching and then using a tarball.
-- Added the support of Forgejo for the bot
+- Added Forgejo support to the bot
+- Added the ability to include the list of commits between updates in the bot.
+  This an be configured via the environment variable `LON_LIST_COMMITS`. You
+  can either set this to `true` or an integer. This configures the number of
+  commits to list. The default is 50.
 
 ## 0.4.0
 
