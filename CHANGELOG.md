@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0 (unreleased)
+
+- Fixed a redundant download when prefetching and then using a git source.
+
 ## 0.5.0
 
 - Fixed a redundant download when prefetching and then using a tarball.
