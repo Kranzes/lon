@@ -41,12 +41,18 @@ struct NixPrefetchGitResponse {
     sha256: String,
 }
 
+/// Fetch a git source and calculate its hash.
+///
+/// Uses the same store path (via `--name source`) as `builtins.fetchGit` to download the
+/// source only once.
 pub fn prefetch_git(url: &str, revision: &str, submodules: bool) -> Result<SriHash> {
     let mut command = Command::new("nix-prefetch-git");
     if submodules {
         command.arg("--fetch-submodules");
     }
     let output = command
+        .arg("--name")
+        .arg("source")
         .arg(url)
         .arg(revision)
         .output()
