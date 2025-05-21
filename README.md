@@ -10,7 +10,7 @@ Lock & update Nix dependencies.
 - Allows overriding dependencies via an environment variable for local
   development
 - Leverages modern Nix features (concretely this means Nix >= 2.4 is required)
-- Built-in bot to automate dependency updates
+- Built-in bot to automate dependency updates for GitHub, GitLab, and Forgejo
 
 ## Installation
 
@@ -245,6 +245,9 @@ The bot is configured exclusively via environment variables.
   string (e.g. `"lon,bot"`).
 - `LON_PUSH_URL`: The URL to use to push to the repository. This can be used to
   set a token in the URL. For GitLab, this is required.
+- `LON_LIST_COMMITS`: The number of commits to list in the commit message that
+  occured between the old revision and the updated revision. If this is unset,
+  none are listed.
 
 #### GitLab Specific (Required)
 
@@ -260,7 +263,6 @@ CI/CD](https://docs.gitlab.com/ci/variables/predefined_variables/#predefined-var
 These are [predefined in GitHub
 Actions](https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/store-information-in-variables#default-environment-variables).
 
-- `GITHUB_API_URL`
 - `GITHUB_REPOSITORY`
 
 ## Contributing
