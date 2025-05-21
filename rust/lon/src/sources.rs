@@ -1,14 +1,10 @@
-use std::{collections::BTreeMap, fmt, path::Path};
+use std::{collections::BTreeMap, path::Path};
 
-use anyhow::{Context, Result, bail};
-use reqwest::{
-    blocking::{Client, Response},
-    header::{self, HeaderName, HeaderValue},
-};
-use serde::Deserialize;
+use anyhow::{Context, Result};
 
 use crate::{
-    git::{self, Revision},
+    git::{self, RevList, Revision},
+    http::GitHubRepoApi,
     lock,
     nix::{self, SriHash},
 };
@@ -22,7 +18,7 @@ const GITHUB_URL: &str = "https://github.com";
 pub struct UpdateSummary {
     pub old_revision: Revision,
     pub new_revision: Revision,
-    pub rev_list: Vec<String>,
+    pub rev_list: Option<RevList>,
 }
 
 impl UpdateSummary {
@@ -33,23 +29,12 @@ impl UpdateSummary {
         Self {
             old_revision,
             new_revision,
-            rev_list: vec![],
+            rev_list: None,
         }
     }
 
-    pub fn message(&self, indent: usize) -> Option<String> {
-        if self.rev_list.is_empty() {
-            None
-        } else {
-            let prefix = " ".repeat(indent);
-
-            Some(
-                std::iter::once(format!("{prefix}Last {} commits:\n", self.rev_list.len()))
-                    .chain(self.rev_list.iter().map(|rev| format!("{prefix}  {rev}\n")))
-                    .collect::<Vec<String>>()
-                    .concat(),
-            )
-        }
+    pub fn add_rev_list(&mut self, rev_list: RevList) {
+        self.rev_list = Some(rev_list);
     }
 }
 
@@ -109,63 +94,6 @@ pub enum Source {
     GitHub(GitHubSource),
 }
 
-#[allow(unused)]
-#[derive(Debug, Deserialize)]
-struct GitHubDiff {
-    pub commits: Vec<GitHubDiffCommitInfo>,
-}
-
-#[allow(unused)]
-#[derive(Debug, Deserialize)]
-struct GitHubDiffCommitInfo {
-    pub sha: String,
-    pub commit: GitHubDiffCommit,
-}
-
-#[allow(unused)]
-#[derive(Debug, Deserialize)]
-struct GitHubDiffCommit {
-    pub message: String,
-}
-
-impl fmt::Display for GitHubDiffCommitInfo {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{} {}",
-            &self.sha[..7],
-            self.commit
-                .message
-                .lines()
-                .next()
-                .expect("Failed to get commit message")
-        )
-    }
-}
-
-fn fetch_github_api(path: &str) -> Result<Response> {
-    let url = &format!("https://api.github.com/{path}");
-
-    let mut headers = header::HeaderMap::new();
-    headers.insert(
-        header::ACCEPT,
-        HeaderValue::from_static("application/vnd.github+json"),
-    );
-    headers.insert(
-        HeaderName::from_static("x-github-api-version"),
-        HeaderValue::from_static("2022-11-28"),
-    );
-
-    Client::builder()
-        .user_agent("LonBot")
-        .default_headers(headers)
-        .build()
-        .context("Failed to build the HTTP client")?
-        .get(url)
-        .send()
-        .with_context(|| format!("Failed to send POST request to {url}"))
-}
-
 impl Source {
     pub fn update(&mut self) -> Result<Option<UpdateSummary>> {
         match self {
@@ -203,42 +131,23 @@ impl Source {
         }
     }
 
-    pub fn rev_list(&self, summary: &mut UpdateSummary, num_commits: usize) -> Result<()> {
+    pub fn rev_list(&self, summary: &UpdateSummary, num_commits: usize) -> Result<RevList> {
         match self {
-            Self::Git(s) => {
-                git::rev_list(
-                    &s.url,
+            Self::Git(s) => git::rev_list(
+                &s.url,
+                summary.old_revision.as_str(),
+                summary.new_revision.as_str(),
+                num_commits,
+            ),
+            Self::GitHub(s) => {
+                let github_repo_api =
+                    GitHubRepoApi::builder(&format!("{}/{}", s.owner, s.repo)).build()?;
+
+                github_repo_api.compare_commits(
                     summary.old_revision.as_str(),
                     summary.new_revision.as_str(),
                     num_commits,
-                )?
-                .lines()
-                .for_each(|rev| summary.rev_list.push(rev.into()));
-
-                Ok(())
-            }
-            Self::GitHub(s) => {
-                let path = format!(
-                    "repos/{}/{}/compare/{}...{}",
-                    s.owner, s.repo, summary.old_revision, summary.new_revision
-                );
-
-                let res = fetch_github_api(&path)?;
-
-                let status = res.status();
-                if !status.is_success() {
-                    bail!("Failed to fetch {path}: {status}:\n{}", res.text()?)
-                }
-
-                let diff: GitHubDiff = serde_json::from_str(&res.text()?)?;
-
-                diff.commits
-                    .iter()
-                    .rev()
-                    .take(num_commits)
-                    .for_each(|info| summary.rev_list.push(info.to_string()));
-
-                Ok(())
+                )
             }
         }
     }
