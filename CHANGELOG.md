@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 (unreleased)
+## 0.5.0
 
 - Fixed a redundant download when prefetching and then using a tarball.
 - Added Forgejo support to the bot
