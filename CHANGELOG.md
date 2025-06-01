@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.0 (unreleased)
+
+- Renamed parameters for `lon init`: `--type` -> `--from` & `--from` ->
+  `--source`.
+
 ## 0.6.0
 
 - Fixed a redundant download when prefetching and then using a git source.

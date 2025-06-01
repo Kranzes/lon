@@ -53,6 +53,20 @@ Writing lon.nix...
 Writing empty lon.lock...
 ```
 
+Initialize from an existing Niv lock file:
+
+```console
+$ lon init --from niv --source nix/sources.json
+Writing lon.nix...
+Initializing lon.lock from "nix/sources.json"
+Converting bombon...
+Locked revision: 2c7df3b0877337b9ce4825ffbaa6e5148b96acb4
+Locked hash: sha256-EiV+QA0RZqzt+lrYdsao7p1LhHB+fICjT4do4L+lIdM=
+Converting nixpkgs...
+Locked revision: 292fa7d4f6519c074f0a50394dbbe69859bb6043
+Locked hash: sha256-GaOZntlJ6gPPbbkTLjbd8BMWaDYafhuuYRNrxCGnPJw=
+```
+
 Add a new GitHub source:
 
 ```console
