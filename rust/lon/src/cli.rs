@@ -73,10 +73,10 @@ enum Commands {
 struct InitArgs {
     /// The type of lock file to initalize from
     #[arg(long, value_enum)]
-    r#type: Option<LockFileType>,
-    /// Path to the lock file to Initialize from
+    from: Option<LockFileType>,
+    /// Path to the lock file to initialize from
     #[arg(long)]
-    from: Option<PathBuf>,
+    source: Option<PathBuf>,
 }
 
 #[derive(Clone, ValueEnum)]
@@ -246,18 +246,18 @@ fn init(directory: impl AsRef<Path>, args: &InitArgs) -> Result<()> {
         return Ok(());
     }
 
-    if args.r#type.is_none() && args.from.is_none() {
+    if args.from.is_none() && args.source.is_none() {
         log::info!("Writing empty lon.lock...");
         let sources = Sources::default();
         sources.write(directory)?;
         return Ok(());
     }
 
-    let Some(path) = &args.from else {
+    let Some(path) = &args.source else {
         bail!("No path to initialize from is provided");
     };
 
-    let Some(lock_file_type) = &args.r#type else {
+    let Some(lock_file_type) = &args.from else {
         bail!("No lock file type is provided");
     };
 
