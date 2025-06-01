@@ -3,6 +3,9 @@
 ## 0.6.0 (unreleased)
 
 - Fixed a redundant download when prefetching and then using a git source.
+- Added the ability to initalize from a Niv `sources.json`. This re-locks the
+  listed revs. It guarantees that the revs don't change. The hashes however
+  might change.
 
 ## 0.5.0
 

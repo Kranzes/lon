@@ -5,12 +5,13 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 
 use crate::{
     bot::{Forge, Forgejo, GitHub, GitLab},
     commit_message::CommitMessage,
     git,
+    init::{Convertible, niv},
     lock::Lock,
     lon_nix::LonNix,
     sources::{GitHubSource, GitSource, Source, Sources},
@@ -40,7 +41,7 @@ pub struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Initialize lon.{nix,lock}
-    Init,
+    Init(InitArgs),
     /// Add a new source
     Add {
         #[clap(subcommand)]
@@ -66,6 +67,21 @@ enum Commands {
         #[clap(subcommand)]
         commands: BotCommands,
     },
+}
+
+#[derive(Args)]
+struct InitArgs {
+    /// The type of lock file to initalize from
+    #[arg(long, value_enum)]
+    r#type: Option<LockFileType>,
+    /// Path to the lock file to Initialize from
+    #[arg(long)]
+    from: Option<PathBuf>,
+}
+
+#[derive(Clone, ValueEnum)]
+enum LockFileType {
+    Niv,
 }
 
 #[derive(Subcommand)]
@@ -197,7 +213,7 @@ impl Cli {
 impl Commands {
     pub fn call(self, directory: impl AsRef<Path>) -> Result<()> {
         match self {
-            Self::Init => init(directory),
+            Self::Init(args) => init(directory, &args),
             Self::Add { commands } => match commands {
                 AddCommands::Git(args) => add_git(directory, &args),
                 AddCommands::GitHub(args) => add_github(directory, &args),
@@ -217,7 +233,7 @@ impl Commands {
     }
 }
 
-fn init(directory: impl AsRef<Path>) -> Result<()> {
+fn init(directory: impl AsRef<Path>, args: &InitArgs) -> Result<()> {
     if LonNix::path(&directory).exists() {
         log::info!("lon.nix already exists");
     } else {
@@ -227,11 +243,32 @@ fn init(directory: impl AsRef<Path>) -> Result<()> {
 
     if Lock::path(&directory).exists() {
         log::info!("lon.lock already exists");
-    } else {
+        return Ok(());
+    }
+
+    if args.r#type.is_none() && args.from.is_none() {
         log::info!("Writing empty lon.lock...");
         let sources = Sources::default();
         sources.write(directory)?;
+        return Ok(());
     }
+
+    let Some(path) = &args.from else {
+        bail!("No path to initialize from is provided");
+    };
+
+    let Some(lock_file_type) = &args.r#type else {
+        bail!("No lock file type is provided");
+    };
+
+    let lock_file = match lock_file_type {
+        LockFileType::Niv => niv::LockFile::from_file(path)?,
+    };
+
+    log::info!("Initializing lon.lock from {path:?}");
+
+    let sources = lock_file.convert()?;
+    sources.write(&directory)?;
 
     Ok(())
 }
