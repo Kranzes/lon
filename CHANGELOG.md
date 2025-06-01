@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.0 (unreleased)
+## 0.6.0
 
 - Fixed a redundant download when prefetching and then using a git source.
 - Added the ability to initalize from a Niv `sources.json`. This re-locks the
