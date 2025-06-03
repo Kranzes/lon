@@ -1,4 +1,4 @@
-name: "Run nix flake check"
+name: "Build packages and checks"
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
         with:
           diagnostic-endpoint: ""
           source-url: "https://install.lix.systems/lix/lix-installer-x86_64-linux"
-      - run: nix flake check --log-format raw-with-logs -L
+      - run: nix-build -A packages -A checks
 
 env:
   FORCE_COLOR: 1

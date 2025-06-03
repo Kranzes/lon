@@ -5,8 +5,6 @@
   nix,
   nix-prefetch-git,
   git,
-  clippy,
-  rustfmt,
 }:
 
 let
@@ -41,24 +39,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
   '';
 
   stripAllList = [ "bin" ];
-
-  passthru.tests = {
-    clippy = finalAttrs.finalPackage.overrideAttrs (
-      _: previousAttrs: {
-        pname = previousAttrs.pname + "-clippy";
-        nativeCheckInputs = (previousAttrs.nativeCheckInputs or [ ]) ++ [ clippy ];
-        checkPhase = "cargo clippy";
-      }
-    );
-    fmt = finalAttrs.finalPackage.overrideAttrs (
-      _: previousAttrs: {
-        pname = previousAttrs.pname + "-rustfmt";
-        nativeCheckInputs = (previousAttrs.nativeCheckInputs or [ ]) ++ [ rustfmt ];
-        checkPhase = "cargo fmt --check";
-      }
-    );
-
-  };
 
   meta = with lib; {
     homepage = "https://github.com/nikstur/lon";
