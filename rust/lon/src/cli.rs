@@ -541,8 +541,9 @@ fn commit(
     commit_message: &str,
     user: Option<git::User>,
 ) -> Result<()> {
-    git::add(&directory, &[&Lock::path(&directory)])?;
-    git::add(&directory, &[&LonNix::path(&directory)])?;
+    // Don't provide the directory twice. The `git add` command is already executed in the
+    // directory, so the Lock and LonNix paths don't need to include it as well.
+    git::add(&directory, &[&Lock::path(""), &LonNix::path("")])?;
     git::commit(&directory, commit_message, user)?;
     Ok(())
 }

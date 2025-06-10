@@ -360,6 +360,9 @@ pub fn rev_list(
     Ok(RevList::from_git_output(s.trim_end()))
 }
 
+/// Add files to git staging.
+///
+/// This expects paths that are relative to the current working directory.
 pub fn add(directory: impl AsRef<Path>, args: &[&Path]) -> Result<()> {
     let output = Command::new("git")
         .arg("-C")
@@ -371,7 +374,7 @@ pub fn add(directory: impl AsRef<Path>, args: &[&Path]) -> Result<()> {
 
     if !output.status.success() {
         bail!(
-            "Failed to add files to git statging\n{}",
+            "Failed to add files to git staging\n{}",
             String::from_utf8_lossy(&output.stderr)
         );
     }
