@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0 (unreleased)
+
+- Fixed `update --commit` when supplying a directory via `-d`.
+
 ## 0.7.0
 
 - Renamed parameters for `lon init`: `--type` -> `--from` & `--from` ->
