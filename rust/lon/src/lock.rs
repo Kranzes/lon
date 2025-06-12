@@ -33,9 +33,10 @@ impl Lock {
     }
 
     pub fn from_file(path: impl AsRef<Path>) -> Result<Self> {
-        let file = File::open(path.as_ref())
-            .with_context(|| format!("Failed to open {:?}", path.as_ref()))?;
-        serde_json::from_reader(file).context("Failed to deserialize lock file")
+        let lock_json = std::fs::read_to_string(path.as_ref())
+            .with_context(|| format!("Failed to read {:?}", path.as_ref()))?;
+
+        serde_json::from_str(&lock_json).context("Failed to deserialize lock file")
     }
 
     pub fn to_file(&self, path: impl AsRef<Path>) -> Result<()> {
