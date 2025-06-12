@@ -1,12 +1,12 @@
 use std::{collections::BTreeMap, path::Path};
 
 use anyhow::{Context, Result};
+use nix_compat::nixhash::NixHash;
 
 use crate::{
     git::{self, RevList, Revision},
     http::GitHubRepoApi,
-    lock,
-    nix::{self, SriHash},
+    lock, nix,
 };
 
 const GITHUB_URL: &str = "https://github.com";
@@ -158,7 +158,7 @@ pub struct GitSource {
     url: String,
     branch: String,
     revision: Revision,
-    hash: SriHash,
+    hash: NixHash,
     last_modified: Option<u64>,
 
     /// Whether to fetch submodules
@@ -261,7 +261,7 @@ impl GitSource {
     }
 
     /// Computing the hash for this source type.
-    fn compute_hash(url: &str, revision: &str, submodules: bool) -> Result<SriHash> {
+    fn compute_hash(url: &str, revision: &str, submodules: bool) -> Result<NixHash> {
         nix::prefetch_git(url, revision, submodules)
             .with_context(|| format!("Failed to compute hash for {url}@{revision}"))
     }
@@ -274,7 +274,7 @@ pub struct GitHubSource {
     branch: String,
     revision: Revision,
     url: String,
-    hash: SriHash,
+    hash: NixHash,
 
     frozen: bool,
 }
@@ -369,7 +369,7 @@ impl GitHubSource {
     }
 
     /// Compute the hash for this source type.
-    fn compute_hash(url: &str) -> Result<SriHash> {
+    fn compute_hash(url: &str) -> Result<NixHash> {
         nix::prefetch_tarball(url).with_context(|| format!("Failed to compute hash for {url}"))
     }
 
